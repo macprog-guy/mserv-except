@@ -1,6 +1,6 @@
 {
   "name": "mserv-except",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Error handling middleware for mserv.",
   "keywords": [
     "npm",
@@ -35,6 +35,7 @@
   },
   "devDependencies": {
     "chai": "^3.2.0",
+    "co": "^4.6.0",
     "mocha": "^2.2.5",
     "mserv": "^0.2.0"
   }

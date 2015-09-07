@@ -1,89 +1,111 @@
+'use strict'
+
 var chai    = require('chai'),
 	should  = chai.should(),
-	service = require('mserv')({amqp:false}),
+	mserv   = require('mserv'),
     except  = require('.'),
+    co      = require('co'),
 	array   = []
 
-service.use('except', except, {
-	handler: function(err) {
-		array.push(1)
-	}
-})
 
-service.action({
-	name: 'noop',
-	handler: function*() {
-	}
-})
-
-service.action({
-	name: 'throw1',
-	except: function(err) {
-		array.push(2)
-	},
-	handler: function*() {
-		throw new Error('test')
-	}
-})
-
-service.action({
-	name: 'throw2',
-	except: {
-		handler: function(err) {
-			array.push(2)
+// Helper function makes tests less verbose
+function wrappedTest(generatorFunc) {
+	return function(done) {
+		try {
+			co(generatorFunc)
+			.then(
+				function()   { done()    },
+				function(err){ done(err) }
+			)
 		}
-	},
-	handler: function*() {
-		throw new Error('test')
+		catch(err) {
+			done(err)
+		}
 	}
-})
+}
+
+
 
 
 describe('mserv-except', function(){
+
+	let service = mserv({amqp:false})
+		
+	service
+	// Root error handler stop the bubbling of the error (yield will never throw)
+	.use('except', except, {
+		handler: function(err) {
+			array.push(err.message)
+			return 'error'
+		}
+	})
+
+	.action({
+		name: 'noop',
+		handler: function*() {
+		}
+	})
+
+	// Action level handler that pushes message before other handlers can manipulate the error.
+	.action({
+		name: 'catchAndRethrow1',
+		except: function(err) {
+			array.push(err.message)
+			throw err
+		},
+		handler: function*() {
+			throw new Error('test')
+		}
+	})
+
+	// Action level handler that pushes message before other handlers can manipulate the error.
+	.action({
+		name: 'catchAndRethrow2',
+		except: {
+			handler: function(err) {
+				array.push(err.message)
+				throw err
+			}
+		},
+		handler: function*() {
+			throw new Error('test')
+		}
+	})
+
+
+	// Global handler that modifies the error
+	service.ext.except(function(err){
+		err.message = err.message + '!'
+		err.payload = Math.random()
+		throw err
+	})
+
+
+
+
 
 	beforeEach(function(done){
 		array = []
 		done()
 	})
 
-	it('should execute the function without catching anything', function(done){
-		service.script(function*(){
-			try {
-				yield this.invoke('noop')
-				array.should.eql([])
-				done()
-			}
-			catch(err) {
-				done(err)
-			}
-		})
-	})
+	it('should execute the function without catching anything', wrappedTest(function*(){
+		yield service.invoke('noop')
+		array.should.eql([])
+	}))
 
 
-	it('should execute the function, catch and run both handlers', function(done){
-		service.script(function*(){
-			try {
-				yield this.invoke('throw1')
-				array.should.eql([1,2])
-				done()
-			}
-			catch(err) {
-				done(err)
-			}
-		})
-	})
+	it('should execute the function, catch and run all handlers', wrappedTest(function*(){
+		let result = yield service.invoke('catchAndRethrow1')
+		result.should.equal('error')
+		array.should.eql(['test','test!'])
+	}))
 
 
-	it('should execute the function, catch and run both handlers also', function(done){
-		service.script(function*(){
-			try {
-				yield this.invoke('throw2')
-				array.should.eql([1,2])
-				done()
-			}
-			catch(err) {
-				done(err)
-			}
-		})
-	})
+	it('should execute the function, catch and run all handlers also', wrappedTest(function*(){
+		let result = yield service.invoke('catchAndRethrow1')
+		result.should.equal('error')
+		array.should.eql(['test','test!'])
+	}))
+
 })
