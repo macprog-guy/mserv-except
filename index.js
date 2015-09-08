@@ -53,6 +53,9 @@ module.exports = function(service, options) {
 					err = newErr
 				}
 			}
+			
+			// If we get here then we re-throw
+			throw err
 		}
 	}
 }

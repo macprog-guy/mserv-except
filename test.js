@@ -29,13 +29,15 @@ function wrappedTest(generatorFunc) {
 
 describe('mserv-except', function(){
 
-	let service = mserv({amqp:false})
+	let rethrow = false,
+		service = mserv({amqp:false})
 		
 	service
 	// Root error handler stop the bubbling of the error (yield will never throw)
 	.use('except', except, {
 		handler: function(err) {
 			array.push(err.message)
+			if (rethrow) throw err
 			return 'error'
 		}
 	})
@@ -108,4 +110,15 @@ describe('mserv-except', function(){
 		array.should.eql(['test','test!'])
 	}))
 
+	it('should throw an exception in the end', wrappedTest(function*(){
+		rethrow = true
+		try {
+			yield service.invoke('catchAndRethrow1')
+			throw new Error('Invoke did not throw')
+		}
+		catch(err) {
+			if (err.message === 'Invoke did not throw')
+				throw err			
+		}
+	}))
 })
