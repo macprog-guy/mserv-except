@@ -1,3 +1,6 @@
+# NOT MAINTAINED ANYMORE!
+If you would like to own this project I can transfer it to you along with all the other related projects.
+
 # Introduction
 mserv-except is an error and exception handling middleware for [mserv](https://github.com/macprog-guy/mserv). It's simply catches exceptions that are thrown in the middleware + action pipeline and redirects them to a custom handler.
 
